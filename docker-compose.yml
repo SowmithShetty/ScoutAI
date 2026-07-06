@@ -1,0 +1,33 @@
+version: '3.9'
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: scoutai-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: scoutai
+      POSTGRES_USER: scoutai
+      POSTGRES_PASSWORD: scoutai_dev_2024
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U scoutai"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: scoutai-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+volumes:
+  postgres_data:
+  redis_data:
