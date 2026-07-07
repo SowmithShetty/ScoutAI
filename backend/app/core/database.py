@@ -38,13 +38,19 @@ class Base(DeclarativeBase):
 
 settings = get_settings()
 
+engine_kwargs = {
+    "echo": settings.DEBUG,
+    "pool_pre_ping": True,
+}
+if settings.DATABASE_URL.startswith("postgresql"):
+    engine_kwargs["pool_size"] = 20
+    engine_kwargs["max_overflow"] = 10
+
 engine = create_async_engine(
     settings.DATABASE_URL,
-    echo=settings.DEBUG,
-    pool_size=20,
-    max_overflow=10,
-    pool_pre_ping=True,
+    **engine_kwargs
 )
+
 
 async_session_factory = async_sessionmaker(
     engine,
