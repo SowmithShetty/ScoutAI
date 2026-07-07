@@ -22,13 +22,14 @@ class Settings(BaseSettings):
 
     # Database
     DATABASE_URL: str = Field(
-        default="postgresql+asyncpg://scoutai:scoutai_dev_2024@localhost:5432/scoutai",
-        description="Async PostgreSQL connection string",
+        default="sqlite+aiosqlite:///scoutai.db",
+        description="Async connection string",
     )
     DATABASE_URL_SYNC: str = Field(
-        default="postgresql://scoutai:scoutai_dev_2024@localhost:5432/scoutai",
-        description="Sync PostgreSQL connection string (for Alembic)",
+        default="sqlite:///scoutai.db",
+        description="Sync connection string (for Alembic)",
     )
+
 
     # JWT Authentication
     SECRET_KEY: str = Field(
