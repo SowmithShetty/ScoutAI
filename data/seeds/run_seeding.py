@@ -20,7 +20,7 @@ from app.models.player import Player, PlayerStatistics
 from app.models.transfer import Transfer
 from app.models.medical import MedicalRecord
 from app.models.user import User
-from app.core.security import get_password_hash
+from app.core.security import hash_password
 
 from data.seeds.seed_database import generate_players
 
