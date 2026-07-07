@@ -25,22 +25,22 @@ from app.core.security import hash_password
 from data.seeds.seed_database import generate_players
 
 async def seed_data():
-    print("🚀 Initializing database tables...")
+    print("Initializing database tables...")
     await init_db()
-    print("✅ Database tables created/verified.")
+    print("Database tables created/verified.")
 
-    print("🌱 Generating 500 players and club data...")
+    print("Generating 500 players and club data...")
     seed_data = generate_players(500)
-    print("✅ Generation complete.")
+    print("Generation complete.")
 
     async with async_session_factory() as session:
         # 1. Create Default Users (Scout, Analyst, Director)
-        print("👤 Creating demo users...")
+        print("Creating demo users...")
         demo_users = [
             User(
                 id=uuid.UUID("11111111-1111-1111-1111-111111111111"),
                 email="scout@scoutai.com",
-                hashed_password=hash_password("password123"),
+                password_hash=hash_password("password123"),
                 full_name="Alex Mercer",
                 role="scout",
                 is_active=True,
@@ -48,7 +48,7 @@ async def seed_data():
             User(
                 id=uuid.UUID("22222222-2222-2222-2222-222222222222"),
                 email="analyst@scoutai.com",
-                hashed_password=hash_password("password123"),
+                password_hash=hash_password("password123"),
                 full_name="Sarah Connor",
                 role="analyst",
                 is_active=True,
@@ -56,7 +56,7 @@ async def seed_data():
             User(
                 id=uuid.UUID("33333333-3333-3333-3333-333333333333"),
                 email="director@scoutai.com",
-                hashed_password=hash_password("password123"),
+                password_hash=hash_password("password123"),
                 full_name="Thomas Muller",
                 role="sporting_director",
                 is_active=True,
@@ -66,7 +66,7 @@ async def seed_data():
             await session.merge(user)
 
         # 2. Insert Competitions
-        print("🏆 Inserting competitions...")
+        print("Inserting competitions...")
         comp_map = {}
         for comp in seed_data["competitions"]:
             c_id = uuid.UUID(comp["id"])
@@ -80,7 +80,7 @@ async def seed_data():
             comp_map[comp["name"]] = c_id
 
         # 3. Insert Clubs
-        print("🛡️ Inserting clubs...")
+        print("Inserting clubs...")
         club_map = {}
         for club in seed_data["clubs"]:
             cl_id = uuid.UUID(club["id"])
@@ -100,7 +100,7 @@ async def seed_data():
         await session.commit()
 
         # 4. Insert Players
-        print("🏃 Inserting players...")
+        print("Inserting players...")
         player_map = {}
         for p in seed_data["players"]:
             p_id = uuid.UUID(p["id"])
@@ -158,7 +158,7 @@ async def seed_data():
         await session.commit()
 
         # 5. Insert Player Statistics
-        print("📊 Inserting player season statistics...")
+        print("Inserting player season statistics...")
         for stats in seed_data["player_statistics"]:
             s_obj = PlayerStatistics(
                 id=uuid.UUID(stats["id"]),
@@ -198,7 +198,7 @@ async def seed_data():
             await session.merge(s_obj)
 
         # 6. Insert Transfers
-        print("💸 Inserting transfers...")
+        print("Inserting transfers...")
         for t in seed_data["transfers"]:
             t_obj = Transfer(
                 id=uuid.UUID(t["id"]),
@@ -213,7 +213,7 @@ async def seed_data():
             await session.merge(t_obj)
 
         # 7. Insert Medical Records
-        print("🏥 Inserting medical injury history...")
+        print("Inserting medical injury history...")
         for m in seed_data["medical_records"]:
             m_obj = MedicalRecord(
                 id=uuid.UUID(m["id"]),
@@ -230,7 +230,7 @@ async def seed_data():
             await session.merge(m_obj)
 
         await session.commit()
-    print("🎉 Database successfully seeded with 500 players!")
+    print("Database successfully seeded with 500 players!")
 
 if __name__ == "__main__":
     asyncio.run(seed_data())
