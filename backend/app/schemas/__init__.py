@@ -22,7 +22,7 @@ __all__ = [
     "TokenResponse",
     "UserResponse",
     "PlayerListResponse",
-    "PlayerDetailResponse",
+    "PlayerDetailResponse", 
     "PlayerFilterParams",
     "PlayerStatisticsResponse",
     "PlayerBriefResponse",
