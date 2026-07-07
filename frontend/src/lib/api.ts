@@ -81,4 +81,21 @@ export const playerApi = {
   getOverviewStats: () => api.get("/players/stats/overview"),
 };
 
+// ─── AI Helpers ──────────────────────────────────────────────────────────────
+
+export const aiApi = {
+  parseBrief: (brief: string) =>
+    api.post("/ai/parse-brief", { brief }),
+
+  recommend: (requirements: Record<string, any>) =>
+    api.post("/ai/recommend", requirements),
+
+  getSimilarity: (playerId: string) =>
+    api.get(`/ai/similarity/${playerId}`),
+
+  getRoleClassification: (playerId: string) =>
+    api.get(`/ai/role-classification/${playerId}`),
+};
+
 export default api;
+
