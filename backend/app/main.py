@@ -13,6 +13,8 @@ from app.core import get_settings
 from app.core.database import init_db, close_db
 from app.modules.auth.router import router as auth_router
 from app.modules.players.router import router as players_router
+from app.modules.ai.router import router as ai_router
+
 
 
 @asynccontextmanager
@@ -62,6 +64,8 @@ def create_app() -> FastAPI:
     # ─── Mount Routers ─────────────────────────────────────────────────────
     app.include_router(auth_router, prefix=settings.API_PREFIX)
     app.include_router(players_router, prefix=settings.API_PREFIX)
+    app.include_router(ai_router, prefix=settings.API_PREFIX)
+
 
     # ─── Health Check ──────────────────────────────────────────────────────
     @app.get("/health", tags=["System"])

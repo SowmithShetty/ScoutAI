@@ -15,6 +15,14 @@ from app.schemas.player import (
     PlayerStatisticsResponse,
     PlayerBriefResponse,
 )
+from app.schemas.ai import (
+    NLPBriefRequest,
+    NLPBriefResponse,
+    ScoutingRequirementsRequest,
+    RecommendationResponse,
+    SimilarityResponse,
+    RoleClassificationResponse,
+)
 
 __all__ = [
     "LoginRequest",
@@ -26,4 +34,11 @@ __all__ = [
     "PlayerFilterParams",
     "PlayerStatisticsResponse",
     "PlayerBriefResponse",
+    "NLPBriefRequest",
+    "NLPBriefResponse",
+    "ScoutingRequirementsRequest",
+    "RecommendationResponse",
+    "SimilarityResponse",
+    "RoleClassificationResponse",
 ]
+
