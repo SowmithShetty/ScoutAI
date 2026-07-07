@@ -40,7 +40,7 @@ async def seed_data():
             User(
                 id=uuid.UUID("11111111-1111-1111-1111-111111111111"),
                 email="scout@scoutai.com",
-                hashed_password=get_password_hash("password123"),
+                hashed_password=hash_password("password123"),
                 full_name="Alex Mercer",
                 role="scout",
                 is_active=True,
@@ -48,7 +48,7 @@ async def seed_data():
             User(
                 id=uuid.UUID("22222222-2222-2222-2222-222222222222"),
                 email="analyst@scoutai.com",
-                hashed_password=get_password_hash("password123"),
+                hashed_password=hash_password("password123"),
                 full_name="Sarah Connor",
                 role="analyst",
                 is_active=True,
@@ -56,7 +56,7 @@ async def seed_data():
             User(
                 id=uuid.UUID("33333333-3333-3333-3333-333333333333"),
                 email="director@scoutai.com",
-                hashed_password=get_password_hash("password123"),
+                hashed_password=hash_password("password123"),
                 full_name="Thomas Muller",
                 role="sporting_director",
                 is_active=True,
