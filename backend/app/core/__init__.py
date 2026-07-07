@@ -9,6 +9,8 @@ from pydantic_settings import BaseSettings
 from pydantic import Field
 from typing import Optional
 from functools import lru_cache
+from pathlib import Path
+
 
 
 class Settings(BaseSettings):
@@ -22,13 +24,14 @@ class Settings(BaseSettings):
 
     # Database
     DATABASE_URL: str = Field(
-        default="sqlite+aiosqlite:///scoutai.db",
+        default=f"sqlite+aiosqlite:///{Path(__file__).resolve().parents[3]}/scoutai.db",
         description="Async connection string",
     )
     DATABASE_URL_SYNC: str = Field(
-        default="sqlite:///scoutai.db",
+        default=f"sqlite:///{Path(__file__).resolve().parents[3]}/scoutai.db",
         description="Sync connection string (for Alembic)",
     )
+
 
 
     # JWT Authentication
