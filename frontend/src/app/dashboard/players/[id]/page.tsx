@@ -290,7 +290,7 @@ export default function PlayerProfilePage({ params }: { params: Promise<{ id: st
           { label: "Assists", value: latestStats.assists, color: "text-electric-bright" },
           { label: "Matches", value: latestStats.matches, color: "text-text-primary" },
           { label: "Minutes", value: latestStats.minutes.toLocaleString(), color: "text-text-primary" },
-          { label: "Rating", value: latestStats.average_rating?.toFixed(1) || latestStats.rating?.toFixed(1), color: "text-amber" },
+          { label: "Rating", value: latestStats.average_rating?.toFixed(1) || "6.0", color: "text-amber" },
           { label: "xG", value: latestStats.xg?.toFixed(1), color: "text-purple-bright" },
           { label: "xA", value: latestStats.xg_assist?.toFixed(1), color: "text-cyan-bright" },
         ].map((stat, i) => (
