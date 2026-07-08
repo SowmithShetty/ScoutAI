@@ -95,6 +95,32 @@ export const aiApi = {
 
   getRoleClassification: (playerId: string) =>
     api.get(`/ai/role-classification/${playerId}`),
+
+  // Phase 4: Analysis
+  getMedicalRisk: (playerId: string) =>
+    api.get(`/ai/medical-risk/${playerId}`),
+
+  getFinancialROI: (playerId: string) =>
+    api.get(`/ai/financial-roi/${playerId}`),
+
+  getAgeTrajectory: (playerId: string) =>
+    api.get(`/ai/age-trajectory/${playerId}`),
+
+  getSquadDepth: () =>
+    api.get("/ai/squad-depth"),
+
+  // Phase 5: Reports & Exports
+  getExplainableAI: (playerId: string) =>
+    api.get(`/ai/explain/${playerId}`),
+
+  downloadPDFReport: (playerId: string) =>
+    api.get(`/ai/report/pdf/${playerId}`, { responseType: "blob" }),
+
+  exportPlayers: (params?: { position?: string; max_results?: number }) =>
+    api.get("/ai/export/players", { params, responseType: "blob" }),
+
+  exportAnalysis: (playerId: string) =>
+    api.get(`/ai/export/analysis/${playerId}`, { responseType: "blob" }),
 };
 
 export default api;

@@ -11,11 +11,13 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).resolve().parents[4]))
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from uuid import UUID
 from typing import List, Dict, Any
+import io
 
 from app.core.database import get_db
 from app.core.security import get_current_user
@@ -44,7 +46,9 @@ from ai.models.medical_predictor import MedicalRiskPredictor
 from ai.models.financial_roi import FinancialROIModel
 from ai.models.age_curve import AgeCurveModel
 from ai.models.squad_depth import SquadDepthPlanner
-
+from ai.models.explainable_ai import ExplainableAI
+from ai.reports.pdf_generator import generate_scout_report_pdf
+from ai.exports.csv_exporter import export_players_csv, export_shortlist_csv, export_analysis_report_csv
 
 router = APIRouter(prefix="/ai", tags=["AI Engine"])
 
@@ -454,3 +458,223 @@ async def get_squad_depth_and_successors(
     
     return SquadDepthPlanner.evaluate_squad(clean_squad, clean_candidates)
 
+
+# ─── Phase 5: Reports, Explainable AI, Exports ────────────────────────────────
+
+@router.get("/report/pdf/{player_id}")
+async def generate_pdf_report(
+    player_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: Any = Depends(get_current_user),
+):
+    """Generate a professional PDF scouting report for a player."""
+    query = select(Player).options(
+        selectinload(Player.club),
+        selectinload(Player.statistics),
+        selectinload(Player.medical_records),
+    ).where(Player.id == player_id)
+    result = await db.execute(query)
+    player = result.scalar_one_or_none()
+    if not player:
+        raise HTTPException(status_code=404, detail="Player not found")
+
+    # Build player dict
+    p_dict = {
+        "name": player.name, "age": player.age, "nationality": player.nationality,
+        "position": player.position, "overall_rating": player.overall_rating,
+        "potential": player.potential, "market_value": player.market_value,
+        "salary": player.salary, "form": player.form,
+        "club_name": player.club.name if player.club else "Free Agent",
+        "pace": player.pace, "shooting": player.shooting, "passing": player.passing,
+        "dribbling": player.dribbling, "defending": player.defending,
+        "physical": player.physical, "vision": player.vision, "creativity": player.creativity,
+    }
+
+    # Statistics
+    stats = []
+    if player.statistics:
+        sorted_stats = sorted(player.statistics, key=lambda s: s.season, reverse=True)
+        for s in sorted_stats[:3]:
+            stats.append({
+                "season": s.season, "matches": s.matches, "goals": s.goals,
+                "assists": s.assists, "xg": s.xg, "xg_assist": s.xg_assist,
+                "average_rating": s.average_rating,
+            })
+
+    # Medical Risk
+    records = [m.__dict__ for m in player.medical_records] if player.medical_records else []
+    med_risk = MedicalRiskPredictor.predict_risk(records)
+
+    # Financial ROI
+    fin_roi = FinancialROIModel.calculate_roi_and_ffp(
+        market_value=player.market_value, salary=player.salary,
+        age=player.age, overall=player.overall_rating, potential=player.potential,
+    )
+
+    # Age Trajectory
+    goals = float(stats[0]["goals"]) if stats else 0.0
+    assists = float(stats[0]["assists"]) if stats else 0.0
+    age_traj = AgeCurveModel.project_trajectory(
+        age=player.age, position=player.position,
+        overall=player.overall_rating, potential=player.potential,
+        current_goals=goals, current_assists=assists,
+    )
+
+    # Role Classification
+    p_attrs = {
+        "id": str(player.id), "name": player.name, "position": player.position,
+        "pace": player.pace, "shooting": player.shooting, "passing": player.passing,
+        "dribbling": player.dribbling, "defending": player.defending,
+        "physical": player.physical, "vision": player.vision, "creativity": player.creativity,
+        "aggression": player.aggression, "leadership": player.leadership,
+        "heading": player.heading, "finishing": player.finishing, "strength": player.strength,
+    }
+    classifications_raw = classify_role(p_attrs)
+    primary_role, confidence = get_primary_role(p_attrs)
+    role_class = {
+        "primary_role": primary_role, "confidence": confidence,
+        "classifications": classifications_raw[:5],
+    }
+
+    # Generate PDF
+    pdf_bytes = generate_scout_report_pdf(
+        player=p_dict, statistics=stats,
+        medical_risk=med_risk, financial_roi=fin_roi,
+        role_classification=role_class, age_trajectory=age_traj,
+    )
+
+    filename = f"ScoutAI_Report_{player.name.replace(' ', '_')}_{player.age}.pdf"
+    return StreamingResponse(
+        io.BytesIO(pdf_bytes),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get("/explain/{player_id}")
+async def get_explainable_ai(
+    player_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: Any = Depends(get_current_user),
+):
+    """Get SHAP-style feature importance breakdown for AI recommendation."""
+    query = select(Player).options(
+        selectinload(Player.medical_records),
+    ).where(Player.id == player_id)
+    result = await db.execute(query)
+    player = result.scalar_one_or_none()
+    if not player:
+        raise HTTPException(status_code=404, detail="Player not found")
+
+    p_dict = {
+        "name": player.name, "age": player.age, "position": player.position,
+        "overall_rating": player.overall_rating, "potential": player.potential,
+        "form": player.form, "market_value": player.market_value,
+        "salary": player.salary, "availability": player.availability,
+        "is_transfer_listed": player.is_transfer_listed,
+        "pace": player.pace, "shooting": player.shooting, "passing": player.passing,
+        "dribbling": player.dribbling, "defending": player.defending,
+        "physical": player.physical, "vision": player.vision, "creativity": player.creativity,
+    }
+
+    # Simulated dimension scores
+    dim_scores = {
+        "performance": min(1.0, player.overall_rating / 99),
+        "tactical_fit": 0.7,
+        "medical": 0.8 if len(player.medical_records or []) < 3 else 0.4,
+        "age_potential": min(1.0, (player.potential - player.overall_rating + 50) / 100),
+        "financial": 0.6,
+        "availability": 0.9 if player.is_transfer_listed else 0.5,
+    }
+    final_score = sum(dim_scores.values()) / len(dim_scores) * 100
+
+    return ExplainableAI.explain_recommendation(
+        player=p_dict, requirements={}, dimension_scores=dim_scores, final_score=final_score,
+    )
+
+
+@router.get("/export/players")
+async def export_players(
+    db: AsyncSession = Depends(get_db),
+    current_user: Any = Depends(get_current_user),
+    position: str = None,
+    max_results: int = 100,
+):
+    """Export filtered player data as a CSV file."""
+    query = select(Player).options(selectinload(Player.club))
+    if position:
+        query = query.where(Player.position == position)
+    query = query.limit(max_results)
+    result = await db.execute(query)
+    players = result.scalars().all()
+
+    player_dicts = []
+    for p in players:
+        player_dicts.append({
+            "name": p.name, "age": p.age, "nationality": p.nationality,
+            "position": p.position, "club_name": p.club.name if p.club else "",
+            "overall_rating": p.overall_rating, "potential": p.potential,
+            "market_value": p.market_value, "salary": p.salary,
+            "pace": p.pace, "shooting": p.shooting, "passing": p.passing,
+            "dribbling": p.dribbling, "defending": p.defending, "physical": p.physical,
+            "vision": p.vision, "creativity": p.creativity,
+            "availability": p.availability, "preferred_foot": p.preferred_foot,
+        })
+
+    csv_bytes = export_players_csv(player_dicts)
+    return StreamingResponse(
+        io.BytesIO(csv_bytes),
+        media_type="text/csv",
+        headers={"Content-Disposition": 'attachment; filename="ScoutAI_Players_Export.csv"'},
+    )
+
+
+@router.get("/export/analysis/{player_id}")
+async def export_player_analysis(
+    player_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: Any = Depends(get_current_user),
+):
+    """Export full player analysis (medical, financial, trajectory) as CSV."""
+    query = select(Player).options(
+        selectinload(Player.club),
+        selectinload(Player.statistics),
+        selectinload(Player.medical_records),
+    ).where(Player.id == player_id)
+    result = await db.execute(query)
+    player = result.scalar_one_or_none()
+    if not player:
+        raise HTTPException(status_code=404, detail="Player not found")
+
+    p_dict = {
+        "name": player.name, "age": player.age, "nationality": player.nationality,
+        "position": player.position, "overall_rating": player.overall_rating,
+        "potential": player.potential, "market_value": player.market_value,
+    }
+
+    records = [m.__dict__ for m in player.medical_records] if player.medical_records else []
+    med_risk = MedicalRiskPredictor.predict_risk(records)
+
+    fin_roi = FinancialROIModel.calculate_roi_and_ffp(
+        market_value=player.market_value, salary=player.salary,
+        age=player.age, overall=player.overall_rating, potential=player.potential,
+    )
+
+    goals, assists = 0.0, 0.0
+    if player.statistics:
+        sorted_stats = sorted(player.statistics, key=lambda s: s.season, reverse=True)
+        goals = float(sorted_stats[0].goals)
+        assists = float(sorted_stats[0].assists)
+    age_traj = AgeCurveModel.project_trajectory(
+        age=player.age, position=player.position,
+        overall=player.overall_rating, potential=player.potential,
+        current_goals=goals, current_assists=assists,
+    )
+
+    csv_bytes = export_analysis_report_csv(p_dict, med_risk, fin_roi, age_traj)
+    filename = f"ScoutAI_Analysis_{player.name.replace(' ', '_')}.csv"
+    return StreamingResponse(
+        io.BytesIO(csv_bytes),
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
