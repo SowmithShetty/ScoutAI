@@ -40,6 +40,11 @@ from ai.models.nlp_parser import parse_requirements
 from ai.models.recommendation_engine import RecommendationEngine
 from ai.models.similarity import PlayerSimilarityEngine
 from ai.models.role_classifier import classify_role, get_primary_role
+from ai.models.medical_predictor import MedicalRiskPredictor
+from ai.models.financial_roi import FinancialROIModel
+from ai.models.age_curve import AgeCurveModel
+from ai.models.squad_depth import SquadDepthPlanner
+
 
 router = APIRouter(prefix="/ai", tags=["AI Engine"])
 
@@ -338,3 +343,114 @@ async def get_player_role_classification(
         confidence=confidence,
         classifications=classifications,
     )
+
+@router.get("/medical-risk/{player_id}")
+async def get_player_medical_risk(
+    player_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: Any = Depends(get_current_user),
+):
+    """Assess injury risk category, expected days out, and recurrence patterns."""
+    query = select(Player).options(selectinload(Player.medical_records)).where(Player.id == player_id)
+    result = await db.execute(query)
+    player = result.scalar_one_or_none()
+    if not player:
+        raise HTTPException(status_code=404, detail="Player not found")
+        
+    records = [m.__dict__ for m in player.medical_records] if player.medical_records else []
+    return MedicalRiskPredictor.predict_risk(records)
+
+@router.get("/financial-roi/{player_id}")
+async def get_player_financial_roi(
+    player_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: Any = Depends(get_current_user),
+):
+    """Compute annual FFP cost amortizations and 3-year resale ROI predictions."""
+    query = select(Player).where(Player.id == player_id)
+    result = await db.execute(query)
+    player = result.scalar_one_or_none()
+    if not player:
+        raise HTTPException(status_code=404, detail="Player not found")
+        
+    return FinancialROIModel.calculate_roi_and_ffp(
+        market_value=player.market_value,
+        salary=player.salary,
+        age=player.age,
+        overall=player.overall_rating,
+        potential=player.potential,
+    )
+
+@router.get("/age-trajectory/{player_id}")
+async def get_player_age_trajectory(
+    player_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: Any = Depends(get_current_user),
+):
+    """Project player OVR ratings, goals, and assists values for the next 5 years."""
+    query = select(Player).options(selectinload(Player.statistics)).where(Player.id == player_id)
+    result = await db.execute(query)
+    player = result.scalar_one_or_none()
+    if not player:
+        raise HTTPException(status_code=404, detail="Player not found")
+        
+    # Get average goals and assists from statistics
+    goals = 0.0
+    assists = 0.0
+    if player.statistics:
+        sorted_stats = sorted(player.statistics, key=lambda s: s.season, reverse=True)
+        latest = sorted_stats[0]
+        goals = float(latest.goals)
+        assists = float(latest.assists)
+
+    return AgeCurveModel.project_trajectory(
+        age=player.age,
+        position=player.position,
+        overall=player.overall_rating,
+        potential=player.potential,
+        current_goals=goals,
+        current_assists=assists,
+    )
+
+@router.get("/squad-depth")
+async def get_squad_depth_and_successors(
+    db: AsyncSession = Depends(get_db),
+    current_user: Any = Depends(get_current_user),
+):
+    """Evaluate squad depth per position and list recommended successor candidates."""
+    # Fetch all players
+    query = select(Player).options(selectinload(Player.club))
+    result = await db.execute(query)
+    all_players = result.scalars().all()
+    
+    # We'll mock the 'squad_players' as players of one specific club (e.g. Manchester City or Arsenal)
+    # and the 'candidates' as the rest of the players in the database.
+    if not all_players:
+        return []
+        
+    # Pick the most common club as the user's squad
+    clubs_list = list(set([p.club_name for p in all_players if p.club_name]))
+    target_club = clubs_list[0] if clubs_list else None
+    
+    squad = [p.to_dict() if hasattr(p, "to_dict") else p.__dict__ for p in all_players if p.club_name == target_club]
+    candidates = [p.to_dict() if hasattr(p, "to_dict") else p.__dict__ for p in all_players if p.club_name != target_club]
+    
+    # Simple formatting cleanup for dictionary conversion
+    def clean_p(p):
+        return {
+            "id": str(p.get("id")),
+            "name": p.get("name"),
+            "age": p.get("age"),
+            "position": p.get("position"),
+            "overall_rating": p.get("overall_rating"),
+            "potential": p.get("potential"),
+            "market_value": p.get("market_value"),
+            "club_name": p.get("club_name"),
+            "contract_expiry": str(p.get("contract_expiry", "")),
+        }
+        
+    clean_squad = [clean_p(p) for p in squad]
+    clean_candidates = [clean_p(p) for p in candidates]
+    
+    return SquadDepthPlanner.evaluate_squad(clean_squad, clean_candidates)
+
