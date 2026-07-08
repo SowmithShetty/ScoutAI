@@ -67,7 +67,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex">
+    <div className="min-h-screen flex flex-col lg:flex-row">
       {/* ─── Left Side: Stadium Visual ──────────────────────────────────── */}
       <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-navy">
         {/* Background gradients */}
@@ -136,7 +136,7 @@ export default function LoginPage() {
       </div>
 
       {/* ─── Right Side: Login Form ─────────────────────────────────────── */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center px-6 py-12 relative">
+      <div className="w-full lg:w-1/2 flex flex-col justify-center items-center min-h-screen px-6 py-12 relative overflow-y-auto">
         <div className="absolute inset-0 bg-dots opacity-30" />
 
         {/* Floating particles */}
