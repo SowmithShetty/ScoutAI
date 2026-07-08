@@ -1,5 +1,8 @@
 "use client";
 
+import { useState, useEffect } from "react";
+import { playerApi } from "@/lib/api";
+import { OverviewStats, formatCurrency, POSITION_COLORS } from "@/lib/types";
 import { motion } from "framer-motion";
 import {
   Users,
@@ -223,6 +226,96 @@ function CustomTooltip({ active, payload, label }: any) {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 export default function DashboardPage() {
+  const [stats, setStats] = useState<OverviewStats | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const res = await playerApi.getOverviewStats();
+        setStats(res.data);
+      } catch (err) {
+        console.error("Failed to load dashboard overview stats:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchStats();
+  }, []);
+
+  const dynamicKpis = [
+    {
+      label: "Total Players",
+      value: stats ? stats.total_players.toLocaleString() : "...",
+      change: "+247",
+      trend: "up" as const,
+      icon: Users,
+      color: "from-electric to-electric-dim",
+      bgColor: "bg-electric/10",
+    },
+    {
+      label: "Average Age",
+      value: stats ? `${stats.average_age} yrs` : "...",
+      change: "Optimal Curve",
+      trend: "up" as const,
+      icon: Search,
+      color: "from-emerald to-emerald-dim",
+      bgColor: "bg-emerald/10",
+    },
+    {
+      label: "Average Value",
+      value: stats ? formatCurrency(stats.average_market_value) : "...",
+      change: "+2.4%",
+      trend: "up" as const,
+      icon: DollarSign,
+      color: "from-amber to-amber",
+      bgColor: "bg-amber/10",
+    },
+    {
+      label: "Total Squad Value",
+      value: stats ? formatCurrency(stats.total_market_value) : "...",
+      change: "FFP Compliant",
+      trend: "up" as const,
+      icon: Clock,
+      color: "from-coral to-coral",
+      bgColor: "bg-coral/10",
+    },
+    {
+      label: "Medical Alerts",
+      value: "4",
+      change: "+1 new",
+      trend: "up" as const,
+      icon: HeartPulse,
+      color: "from-purple to-purple",
+      bgColor: "bg-purple/10",
+    },
+    {
+      label: "Recent Reports",
+      value: "12",
+      change: "Scout Checked",
+      trend: "up" as const,
+      icon: FileText,
+      color: "from-electric to-electric",
+      bgColor: "bg-electric/10",
+    },
+  ];
+
+  const scoutedPositions = stats?.position_distribution?.map(p => ({
+    position: p.position,
+    count: p.count,
+    fill: POSITION_COLORS[p.position] || "#64748b"
+  })) || POSITION_DATA;
+
+  const ageDistribution = stats?.age_distribution?.map(a => ({
+    age: a.age.toString(),
+    count: a.count
+  })) || AGE_DATA;
+
+  const nationalityCoverage = stats?.nationality_distribution?.map(n => ({
+    label: n.nationality,
+    players: n.count
+  })) || LEAGUE_DATA.map(l => ({ label: l.league, players: l.players }));
+
   return (
     <div className="space-y-6">
       {/* ─── Page Header ─────────────────────────────────────────────────── */}
@@ -235,7 +328,7 @@ export default function DashboardPage() {
 
       {/* ─── KPI Cards ───────────────────────────────────────────────────── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-        {KPI_CARDS.map((card, i) => (
+        {dynamicKpis.map((card, i) => (
           <motion.div
             key={card.label}
             initial={{ opacity: 0, y: 20 }}
@@ -323,7 +416,7 @@ export default function DashboardPage() {
             Scouted by Position
           </h3>
           <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={POSITION_DATA} barSize={20}>
+            <BarChart data={scoutedPositions} barSize={20}>
               <XAxis
                 dataKey="position"
                 axisLine={false}
@@ -337,7 +430,7 @@ export default function DashboardPage() {
               />
               <Tooltip content={<CustomTooltip />} />
               <Bar dataKey="count" radius={[4, 4, 0, 0]}>
-                {POSITION_DATA.map((entry, index) => (
+                {scoutedPositions.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={entry.fill} />
                 ))}
               </Bar>
@@ -356,7 +449,7 @@ export default function DashboardPage() {
             Age Distribution
           </h3>
           <ResponsiveContainer width="100%" height={220}>
-            <AreaChart data={AGE_DATA}>
+            <AreaChart data={ageDistribution}>
               <defs>
                 <linearGradient id="ageGradient" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.3} />
@@ -439,7 +532,7 @@ export default function DashboardPage() {
           </ResponsiveContainer>
         </motion.div>
 
-        {/* League Coverage */}
+        {/* Nationality Distribution */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -447,27 +540,30 @@ export default function DashboardPage() {
           className="glass-card p-5"
         >
           <h3 className="text-sm font-semibold text-text-primary mb-4">
-            League Coverage
+            Scouted Nationality Distribution
           </h3>
           <div className="space-y-3">
-            {LEAGUE_DATA.map((league, i) => (
-              <div key={league.league} className="flex items-center gap-3">
-                <span className="text-xs text-text-secondary w-28 shrink-0 truncate">
-                  {league.league}
-                </span>
-                <div className="flex-1 h-2 bg-navy-lighter rounded-full overflow-hidden">
-                  <motion.div
-                    initial={{ width: 0 }}
-                    animate={{ width: `${(league.players / 85) * 100}%` }}
-                    transition={{ duration: 0.8, delay: 0.5 + i * 0.05 }}
-                    className="h-full rounded-full bg-gradient-to-r from-electric to-electric-bright"
-                  />
+            {(() => {
+              const maxVal = Math.max(...nationalityCoverage.map(n => n.players), 1);
+              return nationalityCoverage.slice(0, 7).map((item, i) => (
+                <div key={item.label} className="flex items-center gap-3">
+                  <span className="text-xs text-text-secondary w-28 shrink-0 truncate">
+                    {item.label}
+                  </span>
+                  <div className="flex-1 h-2 bg-navy-lighter rounded-full overflow-hidden">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${(item.players / maxVal) * 100}%` }}
+                      transition={{ duration: 0.8, delay: 0.5 + i * 0.05 }}
+                      className="h-full rounded-full bg-gradient-to-r from-electric to-electric-bright"
+                    />
+                  </div>
+                  <span className="text-xs text-text-muted w-8 text-right">
+                    {item.players}
+                  </span>
                 </div>
-                <span className="text-xs text-text-muted w-8 text-right">
-                  {league.players}
-                </span>
-              </div>
-            ))}
+              ));
+            })()}
           </div>
         </motion.div>
       </div>

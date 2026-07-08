@@ -15,9 +15,11 @@ import {
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/lib/auth-context";
 
 export default function LoginPage() {
   const router = useRouter();
+  const { login, register, guestLogin, error, setError } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -30,36 +32,38 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setError(null);
 
-    // Demo: Store a mock token and redirect
-    setTimeout(() => {
-      localStorage.setItem("scoutai_access_token", "demo_token");
-      localStorage.setItem(
-        "scoutai_user",
-        JSON.stringify({
-          id: "demo",
-          email: formData.email || "demo@scoutai.com",
-          full_name: formData.full_name || "Demo User",
-          role: "scout",
-        })
-      );
+    try {
+      if (isLogin) {
+        await login(formData.email, formData.password);
+      } else {
+        await register({
+          email: formData.email,
+          password: formData.password,
+          full_name: formData.full_name,
+          role: "scout" // default role for self-registration
+        });
+      }
       router.push("/dashboard");
-    }, 800);
+    } catch (err) {
+      // Error is stored in authContext and will be displayed
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleGuestLogin = () => {
+  const handleGuestLogin = async () => {
     setLoading(true);
-    localStorage.setItem("scoutai_access_token", "guest_token");
-    localStorage.setItem(
-      "scoutai_user",
-      JSON.stringify({
-        id: "guest",
-        email: "guest@demo.scoutai.com",
-        full_name: "Guest User",
-        role: "guest",
-      })
-    );
-    setTimeout(() => router.push("/dashboard"), 500);
+    setError(null);
+    try {
+      await guestLogin();
+      router.push("/dashboard");
+    } catch (err) {
+      // Error handled by context
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -173,6 +177,12 @@ export default function LoginPage() {
               ? "Sign in to access your recruitment dashboard"
               : "Join ScoutAI and start scouting smarter"}
           </p>
+
+          {error && (
+            <div className="bg-coral/20 border border-coral/30 text-coral p-3 rounded-lg text-sm mb-4">
+              {error}
+            </div>
+          )}
 
           {/* Login Form */}
           <form onSubmit={handleSubmit} className="space-y-4 mb-6">

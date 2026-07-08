@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
+import { useAuth } from "@/lib/auth-context";
 import {
   LayoutDashboard,
   Search,
@@ -54,6 +55,8 @@ function Sidebar({
   setMobileOpen: (v: boolean) => void;
 }) {
   const pathname = usePathname();
+
+  const { logout } = useAuth();
 
   return (
     <>
@@ -140,6 +143,17 @@ function Sidebar({
           })}
         </nav>
 
+        {/* Log Out Button */}
+        <div className="px-3 py-1 border-t border-border/50 shrink-0">
+          <button
+            onClick={logout}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-coral hover:bg-coral/10 transition-colors"
+          >
+            <LogOut className="w-5 h-5 shrink-0" />
+            {!collapsed && <span>Log Out</span>}
+          </button>
+        </div>
+
         {/* Collapse Button */}
         <div className="p-3 border-t border-border shrink-0">
           <button
@@ -171,6 +185,7 @@ function Navbar({
   setMobileOpen: (v: boolean) => void;
 }) {
   const [searchFocused, setSearchFocused] = useState(false);
+  const { user } = useAuth();
 
   return (
     <header
@@ -225,9 +240,11 @@ function Navbar({
           </div>
           <div className="hidden sm:block text-left">
             <p className="text-sm font-medium text-text-primary leading-tight">
-              Demo User
+              {user?.full_name || "Demo User"}
             </p>
-            <p className="text-xs text-text-muted leading-tight">Scout</p>
+            <p className="text-xs text-text-muted leading-tight capitalize">
+              {user?.role || "Scout"}
+            </p>
           </div>
         </button>
       </div>
@@ -244,6 +261,22 @@ export default function DashboardLayout({
 }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { isAuthenticated, isLoading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      router.push("/login");
+    }
+  }, [isLoading, isAuthenticated, router]);
+
+  if (isLoading || !isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-midnight flex items-center justify-center">
+        <div className="w-8 h-8 border-4 border-electric/30 border-t-electric rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-midnight">

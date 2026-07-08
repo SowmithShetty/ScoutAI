@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import {
@@ -16,38 +16,20 @@ import {
   BookmarkPlus,
   TrendingUp,
 } from "lucide-react";
-import { formatCurrency, POSITION_COLORS } from "@/lib/types";
-
-// ─── Mock Player Data ────────────────────────────────────────────────────────
-
-const MOCK_PLAYERS = [
-  { id: "1", name: "Erling Haaland", age: 25, nationality: "Norway", position: "ST", club: "Manchester City", league: "Premier League", market_value: 180000000, overall_rating: 91, potential: 95, preferred_foot: "Left", availability: "Available", image_url: null, is_transfer_listed: false, salary: 375000 },
-  { id: "2", name: "Jude Bellingham", age: 22, nationality: "England", position: "CAM", club: "Real Madrid", league: "La Liga", market_value: 150000000, overall_rating: 89, potential: 94, preferred_foot: "Right", availability: "Available", image_url: null, is_transfer_listed: false, salary: 320000 },
-  { id: "3", name: "Florian Wirtz", age: 22, nationality: "Germany", position: "CAM", club: "Bayer Leverkusen", league: "Bundesliga", market_value: 130000000, overall_rating: 88, potential: 94, preferred_foot: "Right", availability: "Available", image_url: null, is_transfer_listed: false, salary: 200000 },
-  { id: "4", name: "Lamine Yamal", age: 18, nationality: "Spain", position: "RW", club: "FC Barcelona", league: "La Liga", market_value: 150000000, overall_rating: 86, potential: 96, preferred_foot: "Left", availability: "Available", image_url: null, is_transfer_listed: false, salary: 180000 },
-  { id: "5", name: "Jamal Musiala", age: 22, nationality: "Germany", position: "CAM", club: "Bayern Munich", league: "Bundesliga", market_value: 120000000, overall_rating: 87, potential: 93, preferred_foot: "Right", availability: "Available", image_url: null, is_transfer_listed: false, salary: 250000 },
-  { id: "6", name: "Bukayo Saka", age: 23, nationality: "England", position: "RW", club: "Arsenal", league: "Premier League", market_value: 120000000, overall_rating: 88, potential: 92, preferred_foot: "Left", availability: "Available", image_url: null, is_transfer_listed: false, salary: 300000 },
-  { id: "7", name: "Vinícius Júnior", age: 25, nationality: "Brazil", position: "LW", club: "Real Madrid", league: "La Liga", market_value: 150000000, overall_rating: 90, potential: 93, preferred_foot: "Right", availability: "Available", image_url: null, is_transfer_listed: false, salary: 400000 },
-  { id: "8", name: "Phil Foden", age: 25, nationality: "England", position: "CAM", club: "Manchester City", league: "Premier League", market_value: 110000000, overall_rating: 88, potential: 91, preferred_foot: "Left", availability: "Available", image_url: null, is_transfer_listed: false, salary: 300000 },
-  { id: "9", name: "Pedri", age: 22, nationality: "Spain", position: "CM", club: "FC Barcelona", league: "La Liga", market_value: 100000000, overall_rating: 87, potential: 92, preferred_foot: "Right", availability: "Injured", image_url: null, is_transfer_listed: false, salary: 220000 },
-  { id: "10", name: "William Saliba", age: 24, nationality: "France", position: "CB", club: "Arsenal", league: "Premier League", market_value: 90000000, overall_rating: 87, potential: 91, preferred_foot: "Right", availability: "Available", image_url: null, is_transfer_listed: false, salary: 200000 },
-  { id: "11", name: "Rodri", age: 28, nationality: "Spain", position: "CDM", club: "Manchester City", league: "Premier League", market_value: 110000000, overall_rating: 91, potential: 91, preferred_foot: "Right", availability: "Injured", image_url: null, is_transfer_listed: false, salary: 350000 },
-  { id: "12", name: "Kylian Mbappé", age: 26, nationality: "France", position: "ST", club: "Real Madrid", league: "La Liga", market_value: 180000000, overall_rating: 91, potential: 94, preferred_foot: "Right", availability: "Available", image_url: null, is_transfer_listed: false, salary: 500000 },
-  { id: "13", name: "Gavi", age: 21, nationality: "Spain", position: "CM", club: "FC Barcelona", league: "La Liga", market_value: 80000000, overall_rating: 84, potential: 92, preferred_foot: "Right", availability: "Available", image_url: null, is_transfer_listed: false, salary: 170000 },
-  { id: "14", name: "Declan Rice", age: 26, nationality: "England", position: "CDM", club: "Arsenal", league: "Premier League", market_value: 100000000, overall_rating: 87, potential: 89, preferred_foot: "Right", availability: "Available", image_url: null, is_transfer_listed: false, salary: 280000 },
-  { id: "15", name: "Alejandro Garnacho", age: 21, nationality: "Argentina", position: "LW", club: "Manchester United", league: "Premier League", market_value: 50000000, overall_rating: 80, potential: 89, preferred_foot: "Right", availability: "Available", image_url: null, is_transfer_listed: true, salary: 120000 },
-  { id: "16", name: "Xavi Simons", age: 22, nationality: "Netherlands", position: "CAM", club: "RB Leipzig", league: "Bundesliga", market_value: 80000000, overall_rating: 84, potential: 90, preferred_foot: "Right", availability: "Available", image_url: null, is_transfer_listed: false, salary: 180000 },
-];
+import { formatCurrency, POSITION_COLORS, PlayerBrief } from "@/lib/types";
+import { playerApi } from "@/lib/api";
 
 const POSITIONS = ["ST", "CF", "LW", "RW", "CAM", "CM", "CDM", "LM", "RM", "LB", "RB", "LWB", "RWB", "CB", "GK"];
-const LEAGUES = ["Premier League", "La Liga", "Bundesliga", "Serie A", "Ligue 1"];
+const LEAGUES = ["England", "Spain", "Germany", "Italy", "France"]; // country names in database country/league
 const FEET = ["Right", "Left", "Both"];
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// PLAYER DATABASE PAGE
-// ═══════════════════════════════════════════════════════════════════════════════
-
 export default function PlayersPage() {
+  const [players, setPlayers] = useState<PlayerBrief[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [loading, setLoading] = useState(true);
+
   const [searchQuery, setSearchQuery] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [sortBy, setSortBy] = useState("overall_rating");
@@ -61,38 +43,50 @@ export default function PlayersPage() {
     availability: "",
   });
 
-  // Filter and sort players
-  const filteredPlayers = useMemo(() => {
-    let result = [...MOCK_PLAYERS];
+  // Debounced search query
+  const [debouncedSearch, setDebouncedSearch] = useState("");
 
-    // Search
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      result = result.filter(
-        (p) =>
-          p.name.toLowerCase().includes(q) ||
-          p.nationality.toLowerCase().includes(q) ||
-          p.club.toLowerCase().includes(q)
-      );
-    }
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+      setPage(1); // Reset page on search
+    }, 400);
 
-    // Filters
-    if (filters.position) result = result.filter((p) => p.position === filters.position);
-    if (filters.league) result = result.filter((p) => p.league === filters.league);
-    if (filters.preferred_foot) result = result.filter((p) => p.preferred_foot === filters.preferred_foot);
-    if (filters.min_age) result = result.filter((p) => p.age >= parseInt(filters.min_age));
-    if (filters.max_age) result = result.filter((p) => p.age <= parseInt(filters.max_age));
-    if (filters.availability) result = result.filter((p) => p.availability === filters.availability);
+    return () => clearTimeout(handler);
+  }, [searchQuery]);
 
-    // Sort
-    result.sort((a, b) => {
-      const aVal = a[sortBy as keyof typeof a] as number;
-      const bVal = b[sortBy as keyof typeof b] as number;
-      return sortOrder === "desc" ? (bVal ?? 0) - (aVal ?? 0) : (aVal ?? 0) - (bVal ?? 0);
-    });
+  useEffect(() => {
+    const fetchPlayers = async () => {
+      setLoading(true);
+      try {
+        const params: Record<string, any> = {
+          page,
+          page_size: 15,
+          sort_by: sortBy,
+          sort_order: sortOrder,
+        };
 
-    return result;
-  }, [searchQuery, filters, sortBy, sortOrder]);
+        if (debouncedSearch) params.search = debouncedSearch;
+        if (filters.position) params.position = filters.position;
+        if (filters.league) params.league = filters.league;
+        if (filters.preferred_foot) params.preferred_foot = filters.preferred_foot;
+        if (filters.min_age) params.min_age = parseInt(filters.min_age);
+        if (filters.max_age) params.max_age = parseInt(filters.max_age);
+        if (filters.availability) params.availability = filters.availability;
+
+        const res = await playerApi.list(params);
+        setPlayers(res.data.players);
+        setTotal(res.data.total);
+        setTotalPages(res.data.total_pages);
+      } catch (err) {
+        console.error("Failed to fetch players:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPlayers();
+  }, [page, debouncedSearch, filters, sortBy, sortOrder]);
 
   const toggleSort = (field: string) => {
     if (sortBy === field) {
@@ -101,6 +95,7 @@ export default function PlayersPage() {
       setSortBy(field);
       setSortOrder("desc");
     }
+    setPage(1);
   };
 
   const activeFilterCount = Object.values(filters).filter(Boolean).length;
@@ -117,7 +112,7 @@ export default function PlayersPage() {
         <div>
           <h1 className="text-2xl font-bold text-text-primary">Player Database</h1>
           <p className="text-sm text-text-secondary mt-1">
-            {filteredPlayers.length} players found
+            {total} players found
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -188,7 +183,7 @@ export default function PlayersPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs text-text-muted mb-1 block">League</label>
+                  <label className="text-xs text-text-muted mb-1 block">League (Country)</label>
                   <select
                     value={filters.league}
                     onChange={(e) => setFilters({ ...filters, league: e.target.value })}
@@ -292,109 +287,117 @@ export default function PlayersPage() {
               </tr>
             </thead>
             <tbody>
-              {filteredPlayers.map((player, i) => (
-                <motion.tr
-                  key={player.id}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ duration: 0.2, delay: i * 0.02 }}
-                  className="border-b border-border/50 hover:bg-surface/30 transition-colors group"
-                >
-                  <td className="px-4 py-3">
-                    <Link
-                      href={`/dashboard/players/${player.id}`}
-                      className="flex items-center gap-3"
-                    >
-                      <div className="w-9 h-9 rounded-full bg-gradient-to-br from-navy-lighter to-surface flex items-center justify-center text-sm font-bold text-text-secondary shrink-0">
-                        {player.name.charAt(0)}
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-text-primary group-hover:text-electric-bright transition-colors">
-                          {player.name}
-                        </p>
-                        <p className="text-xs text-text-muted">{player.preferred_foot} foot</p>
-                      </div>
-                    </Link>
+              {loading ? (
+                <tr>
+                  <td colSpan={10} className="py-20 text-center">
+                    <div className="w-8 h-8 border-4 border-electric/30 border-t-electric rounded-full animate-spin mx-auto" />
                   </td>
-                  <td className="px-4 py-3 text-center text-sm text-text-secondary">
-                    {player.age}
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    <span
-                      className="inline-block px-2 py-0.5 rounded text-xs font-bold"
-                      style={{
-                        backgroundColor: `${POSITION_COLORS[player.position] || "#64748b"}20`,
-                        color: POSITION_COLORS[player.position] || "#64748b",
-                      }}
-                    >
-                      {player.position}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-sm text-text-secondary">
-                    {player.club}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-text-secondary">
-                    {player.nationality}
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    <span
-                      className={`text-sm font-bold ${
-                        player.overall_rating >= 88
-                          ? "text-emerald"
-                          : player.overall_rating >= 84
-                          ? "text-electric-bright"
-                          : "text-text-primary"
-                      }`}
-                    >
-                      {player.overall_rating}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    <span className="text-sm font-medium text-amber">
-                      {player.potential}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-right text-sm font-medium text-text-primary">
-                    {formatCurrency(player.market_value)}
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    <span
-                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
-                        player.availability === "Available"
-                          ? "bg-emerald/10 text-emerald"
-                          : player.availability === "Injured"
-                          ? "bg-coral/10 text-coral"
-                          : "bg-amber/10 text-amber"
-                      }`}
-                    >
-                      <span className="w-1.5 h-1.5 rounded-full bg-current" />
-                      {player.availability}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                </tr>
+              ) : (
+                players.map((player, i) => (
+                  <motion.tr
+                    key={player.id}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.2, delay: i * 0.02 }}
+                    className="border-b border-border/50 hover:bg-surface/30 transition-colors group"
+                  >
+                    <td className="px-4 py-3">
                       <Link
                         href={`/dashboard/players/${player.id}`}
-                        className="w-7 h-7 rounded-md bg-electric/10 flex items-center justify-center text-electric-bright hover:bg-electric/20 transition-colors"
-                        title="View Profile"
+                        className="flex items-center gap-3"
                       >
-                        <Eye className="w-3.5 h-3.5" />
+                        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-navy-lighter to-surface flex items-center justify-center text-sm font-bold text-text-secondary shrink-0">
+                          {player.name.charAt(0)}
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-text-primary group-hover:text-electric-bright transition-colors">
+                            {player.name}
+                          </p>
+                          <p className="text-xs text-text-muted">{player.preferred_foot} foot</p>
+                        </div>
                       </Link>
-                      <button
-                        className="w-7 h-7 rounded-md bg-emerald/10 flex items-center justify-center text-emerald-bright hover:bg-emerald/20 transition-colors"
-                        title="Add to Shortlist"
+                    </td>
+                    <td className="px-4 py-3 text-center text-sm text-text-secondary">
+                      {player.age}
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <span
+                        className="inline-block px-2 py-0.5 rounded text-xs font-bold"
+                        style={{
+                          backgroundColor: `${POSITION_COLORS[player.position] || "#64748b"}20`,
+                          color: POSITION_COLORS[player.position] || "#64748b",
+                        }}
                       >
-                        <BookmarkPlus className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </td>
-                </motion.tr>
-              ))}
+                        {player.position}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-text-secondary">
+                      {player.club?.name || "Free Agent"}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-text-secondary">
+                      {player.nationality}
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <span
+                        className={`text-sm font-bold ${
+                          player.overall_rating >= 88
+                            ? "text-emerald"
+                            : player.overall_rating >= 84
+                            ? "text-electric-bright"
+                            : "text-text-primary"
+                        }`}
+                      >
+                        {player.overall_rating}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <span className="text-sm font-medium text-amber">
+                        {player.potential}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-right text-sm font-medium text-text-primary">
+                      {formatCurrency(player.market_value)}
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <span
+                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
+                          player.availability === "Available"
+                            ? "bg-emerald/10 text-emerald"
+                            : player.availability === "Injured"
+                            ? "bg-coral/10 text-coral"
+                            : "bg-amber/10 text-amber"
+                        }`}
+                      >
+                        <span className="w-1.5 h-1.5 rounded-full bg-current" />
+                        {player.availability}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Link
+                          href={`/dashboard/players/${player.id}`}
+                          className="w-7 h-7 rounded-md bg-electric/10 flex items-center justify-center text-electric-bright hover:bg-electric/20 transition-colors"
+                          title="View Profile"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                        </Link>
+                        <button
+                          className="w-7 h-7 rounded-md bg-emerald/10 flex items-center justify-center text-emerald-bright hover:bg-emerald/20 transition-colors"
+                          title="Add to Shortlist"
+                        >
+                          <BookmarkPlus className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </td>
+                  </motion.tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
 
-        {filteredPlayers.length === 0 && (
+        {!loading && players.length === 0 && (
           <div className="py-16 text-center">
             <Search className="w-12 h-12 text-text-muted mx-auto mb-3" />
             <p className="text-text-secondary">No players found matching your criteria</p>
@@ -404,6 +407,31 @@ export default function PlayersPage() {
             >
               Clear all filters
             </button>
+          </div>
+        )}
+
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between px-4 py-3 border-t border-border bg-navy/40">
+            <div className="text-xs text-text-muted">
+              Showing page {page} of {totalPages} ({total} players total)
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page === 1}
+                className="px-3 py-1.5 rounded bg-surface/50 border border-border text-xs text-text-secondary hover:text-text-primary disabled:opacity-40 transition-colors"
+              >
+                Previous
+              </button>
+              <button
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page === totalPages}
+                className="px-3 py-1.5 rounded bg-surface/50 border border-border text-xs text-text-secondary hover:text-text-primary disabled:opacity-40 transition-colors"
+              >
+                Next
+              </button>
+            </div>
           </div>
         )}
       </div>
